@@ -1,1599 +1,1368 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>starIA</title>
-  <!-- Añadimos la librería Marked.js para convertir Markdown a HTML -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Añadimos Highlight.js para el resaltado de sintaxis en bloques de código -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-  <!-- Añadimos jsPDF para exportar a PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StarIA Chat</title>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-      transition: background 0.3s, color 0.3s;
-    }
-
-    body.light {
-      background-color: #f0f0f0;
-      color: #000;
-    }
-
-    body.dark {
-      background-color: #0d0d0d;
-      color: #fff;
-    }
-
-    .sidebar {
-      width: 250px;
-      background-color: #1a1a1a;
-      padding: 20px;
+    * {
       box-sizing: border-box;
-      transform: translateX(-100%);
-      transition: transform 0.3s ease;
-      position: absolute;
-      height: 100%;
-      z-index: 2;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
     }
 
-    .sidebar.active {
-      transform: translateX(0);
-    }
-
-    .sidebar h2 {
-      margin-top: 0;
-      color: #fff;
-    }
-
-    .sidebar button,
-    .sidebar .delete {
+    html, body {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      background-color: #00bcd4;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 5px;
+      height: 100%;
+      overflow: hidden;
     }
 
-    .sidebar .chat-item {
-      background-color: #2a2a2a;
-      padding: 10px;
-      margin-bottom: 5px;
-      border-radius: 5px;
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      color: #f1f1f1;
+    }
+
+    header {
+      background-color: #121236;
       color: white;
+      padding: 1rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
+      border-bottom: 1px solid #2a2a5a;
+      height: 60px;
     }
-
-    .sidebar .chat-item:hover {
-      background-color: #00bcd4;
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
     }
-
-    .sidebar .chat-item span {
-      flex: 1;
+    
+    .logo-icon {
+      margin-right: 10px;
+      font-size: 1.8rem;
     }
-
-    .menu-toggle {
-      position: absolute;
-      top: 10px;
-      left: 10px;
+    
+    .theme-toggle {
       background: none;
       border: none;
-      font-size: 24px;
-      cursor: pointer;
-      z-index: 3;
       color: white;
+      cursor: pointer;
+      font-size: 1.2rem;
     }
 
-    .main {
+    #chat-container {
       flex: 1;
       display: flex;
       flex-direction: column;
-      margin-left: 0;
-      width: 100%;
-      transition: margin-left 0.3s ease;
+      height: calc(100vh - 60px - 50px - 50px); /* viewport - header - suggestions - form */
+      position: relative;
     }
 
-    .chat-container {
+    #chat {
       flex: 1;
       overflow-y: auto;
-      padding: 60px 20px 20px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      background-image: radial-gradient(circle at center, #1a1a4a 0%, #0a0a1a 100%);
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      max-width: 80%;
+      word-wrap: break-word;
+      position: relative;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      animation: messageFadeIn 0.3s ease-out;
+    }
+
+    @keyframes messageFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .user {
+      background-color: #304280;
+      color: white;
+      align-self: flex-end;
+      margin-left: auto;
+      border-bottom-right-radius: 0;
+    }
+
+    .ai {
+      background-color: #1d1d42;
+      color: #e1e1ff;
+      align-self: flex-start;
+      margin-right: auto;
+      border-bottom-left-radius: 0;
+    }
+    
+    .timestamp {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 5px;
+      text-align: right;
+    }
+    
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      background-color: #1d1d42;
+      padding: 0.7rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      border-bottom-left-radius: 0;
+      position: absolute;
+      bottom: 0;
+      left: 1rem;
+      z-index: 5;
+    }
+    
+    .typing-indicator span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #aaa;
+      border-radius: 50%;
+      margin-right: 5px;
+      animation: typing 1s infinite ease-in-out;
+    }
+    
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+      margin-right: 0;
+    }
+    
+    @keyframes typing {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+      100% { transform: translateY(0); }
+    }
+
+    #suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.8rem 1rem;
+      background-color: #0f0f2a;
+      border-top: 1px solid #2a2a5a;
+      height: 50px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    
+    .suggestion {
+      background-color: #252550;
+      border: 1px solid #3a3a7a;
+      border-radius: 16px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-block;
+    }
+    
+    .suggestion:hover {
+      background-color: #353580;
+      transform: translateY(-2px);
+    }
+
+    form {
+      display: flex;
+      padding: 0.8rem 1rem;
+      background: #121236;
+      border-top: 1px solid #2a2a5a;
+      height: 60px;
     }
 
     .input-container {
       display: flex;
-      padding: 10px;
-      background-color: #1a1a1a;
-    }
-
-    input {
       flex: 1;
-      padding: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      outline: none;
+      position: relative;
     }
 
-    button.send {
-      margin-left: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #00bcd4;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .message {
-      margin-bottom: 10px;
-      padding: 10px;
+    input[type="text"] {
+      flex: 1;
+      padding: 0.7rem;
+      padding-right: 80px;
+      font-size: 1rem;
+      border: 1px solid #2a2a5a;
       border-radius: 8px;
-      max-width: 80%;
+      margin-right: 0.5rem;
+      background-color: #1a1a3a;
+      color: #f1f1f1;
     }
 
-    .user {
-      text-align: right;
-      background-color: #2a2a2a;
-      margin-left: auto;
-    }
-    
-    .ai {
-      text-align: left;
-      color: #fff;
-      background-color: #00768a;
-      margin-right: auto;
-    }
-
-    /* Estilos para el contenido Markdown */
-    .markdown-content {
-      line-height: 1.5;
-    }
-
-    .markdown-content h1, 
-    .markdown-content h2, 
-    .markdown-content h3 {
-      margin-top: 1em;
-      margin-bottom: 0.5em;
-      color: #00bcd4;
-    }
-
-    .markdown-content p {
-      margin: 0.8em 0;
-    }
-
-    .markdown-content code {
-      background-color: rgba(0, 0, 0, 0.2);
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 0.9em;
-    }
-
-    .markdown-content pre {
-      margin: 1em 0;
-      padding: 0.5em;
-      border-radius: 5px;
-      overflow-x: auto;
-    }
-
-    .markdown-content pre code {
-      background-color: transparent;
-      padding: 0;
-    }
-
-    .markdown-content blockquote {
-      border-left: 4px solid #00bcd4;
-      margin-left: 0;
-      padding-left: 1em;
-      color: #aaa;
-    }
-
-    .markdown-content ul, 
-    .markdown-content ol {
-      padding-left: 2em;
-    }
-
-    .markdown-content table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 1em 0;
-    }
-
-    .markdown-content th, 
-    .markdown-content td {
-      border: 1px solid #444;
-      padding: 6px 10px;
-      text-align: left;
-    }
-
-    .markdown-content th {
-      background-color: #333;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 10px;
-      display: none;
-    }
-
-    .toggle-mode {
-      background: none;
-      border: none;
-      color: white;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    
-    /* Estilos para el indicador de escritura animado */
-    .typing-indicator {
-      display: inline-flex;
-      align-items: center;
-      margin-left: 5px;
-    }
-    
-    .typing-dot {
-      width: 6px;
-      height: 6px;
-      margin: 0 2px;
-      background-color: #00bcd4;
-      border-radius: 50%;
-      opacity: 0.6;
-      animation: typingAnimation 1.5s infinite ease-in-out;
-    }
-    
-    .typing-dot:nth-child(1) {
-      animation-delay: 0s;
-    }
-    
-    .typing-dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-    
-    .typing-dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-    
-    @keyframes typingAnimation {
-      0% {
-        transform: scale(1);
-        opacity: 0.6;
-      }
-      50% {
-        transform: scale(1.5);
-        opacity: 1;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 0.6;
-      }
-    }
-    
-    .ai-typing {
-      color: #00bcd4;
+    .input-buttons {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
       align-items: center;
-      text-align: left;
-      margin-bottom: 10px;
-      font-style: italic;
     }
 
-    /* Estilos para los botones de exportación */
-    .export-buttons {
+    .clear-btn, .image-gen-btn {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      padding: 5px;
+      margin-left: 5px;
+      font-size: 1.2rem;
+    }
+
+    .image-gen-btn {
+      color: #8080ff;
+    }
+
+    button {
+      padding: 0.7rem 1rem;
+      background-color: #4040b0;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #5050d0;
+      transform: translateY(-2px);
+    }
+    
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    /* Light theme */
+    body.light {
+      background: #f0f0ff;
+      color: #333;
+    }
+    
+    body.light header {
+      background-color: #4040b0;
+    }
+    
+    body.light .ai {
+      background-color: #e0e0ff;
+      color: #333;
+    }
+    
+    body.light .user {
+      background-color: #4040b0;
+    }
+    
+    body.light input[type="text"] {
+      background-color: #fff;
+      color: #333;
+      border-color: #ccc;
+    }
+    
+    body.light form, body.light #suggestions {
+      background-color: #f0f0ff;
+      border-color: #ddd;
+    }
+    
+    body.light .suggestion {
+      background-color: #e0e0ff;
+      border-color: #ccc;
+      color: #333;
+    }
+    
+    body.light .suggestion:hover {
+      background-color: #d0d0ff;
+    }
+    
+    body.light .typing-indicator {
+      background-color: #e0e0ff;
+    }
+    
+    body.light #chat {
+      background-image: radial-gradient(circle at center, #f5f5ff 0%, #e0e0ff 100%);
+    }
+    
+    .star-animation {
+      position: absolute;
+      background-color: white;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      opacity: 0;
+      animation: star-twinkle 3s infinite;
+      pointer-events: none;
+    }
+    
+    @keyframes star-twinkle {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    
+    .ai-avatar {
+      width: 24px;
+      height: 24px;
+      background-color: #8080ff;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .message-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    /* Estilos para la generación de imágenes */
+    .image-preview {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .image-options {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .image-options button {
+      font-size: 0.8rem;
+      padding: 0.4rem 0.8rem;
+      background-color: #353570;
+      opacity: 0.8;
+    }
+
+    .image-options button:hover {
+      opacity: 1;
+    }
+
+    .image-gen-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-gen-dialog {
+      background-color: #1a1a3a;
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .image-gen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 15px;
     }
 
-    .export-buttons button {
-      margin-bottom: 5px;
+    .image-gen-close {
+      background: none;
+      color: #aaa;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
     }
-    .template-selector-container {
-  display: flex;
-  padding: 5px 10px;
-  background-color: #1a1a1a;
-}
 
-select {
-  background-color: #2a2a2a;
-  color: white;
-  padding: 5px;
-  border: 1px solid #444;
-  border-radius: 5px;
-  outline: none;
-}
+    .image-gen-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
 
-select:focus {
-  border-color: #00bcd4;
-}
-    .sidebar .chat-item small {
-  color: #999;
-  font-size: 0.8em;
-  display: block;
-  margin-top: 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .image-gen-form textarea {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #2a2a5a;
+      background-color: #0f0f2f;
+      color: #f1f1f1;
+      min-height: 100px;
+      resize: vertical;
+    }
 
-#chat-search {
-  margin-bottom: 10px;
-}
+    .image-gen-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
 
-#chat-search:focus {
-  border-color: #00bcd4;
-}
+    .image-gen-option {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 120px;
+    }
 
-  :root {
-    /* Variables para personalización */
-    --primary-color: #00bcd4;
-    --background-dark: #0d0d0d;
-    --background-light: #f0f0f0;
-    --sidebar-bg: #1a1a1a;
-    --chat-user-bg: #2a2a2a;
-    --chat-ai-bg: #00768a;
-    --text-color-dark: #fff;
-    --text-color-light: #000;
-    --font-family: Arial, sans-serif;
-    --font-size-base: 16px;
-    --border-radius: 5px;
-  }
+    .image-gen-option label {
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+    }
+
+    .image-gen-option select {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #2a2a5a;
+      background-color: #0f0f2f;
+      color: #f1f1f1;
+    }
+
+    .image-gen-button {
+      padding: 10px;
+      background-color: #4040b0;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+
+    .image-gen-button:hover {
+      background-color: #5050d0;
+    }
+
+    .image-gen-loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .dalle-attribution {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .generate-spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Animación para entrada de imágenes */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .image-preview {
+      animation: fadeIn 0.5s ease-out;
+    }
     
-  body {
-    font-family: var(--font-family);
-    font-size: var(--font-size-base);
-    /* Resto de tus estilos de body existentes */
-  }
-  
-  body.dark {
-    background-color: var(--background-dark);
-    color: var(--text-color-dark);
-  }
-  
-  body.light {
-    background-color: var(--background-light);
-    color: var(--text-color-light);
-  }
-  
-  /* Actualiza el resto de tus selectores para usar las variables */
-  .sidebar {
-    background-color: var(--sidebar-bg);
-    /* Resto de tus estilos existentes */
-  }
-  
-  .message.user {
-    background-color: var(--chat-user-bg);
-    /* Resto de tus estilos existentes */
-  }
-  
-  .message.ai {
-    background-color: var(--chat-ai-bg);
-    /* Resto de tus estilos existentes */
-  }
-  
-  /* Etc. para otros componentes importantes */
-.file-upload-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0 10px;
-  font-size: 20px;
-}
-
-.file-upload-btn:hover {
-  color: var(--primary-color);
-}
-
-.file-preview {
-  padding: 10px;
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: var(--border-radius);
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.file-preview button {
-  background: none;
-  border: none;
-  color: #f44336;
-  cursor: pointer;
-  font-size: 16px;
-}
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .message {
+        max-width: 90%;
+      }
+      
+      form {
+        padding: 0.6rem;
+      }
+      
+      .actions button {
+        padding: 0.6rem 0.8rem;
+      }
+      
+      .image-gen-dialog {
+        width: 95%;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .message {
+        max-width: 95%;
+      }
+      
+      .actions {
+        gap: 0.3rem;
+      }
+      
+      input[type="text"] {
+        font-size: 0.9rem;
+      }
+    }
   </style>
 </head>
-<body class="dark">
-  <div class="sidebar" id="sidebar">
-    <h2>starIA</h2>
-    <button onclick="newChat()">+ Nuevo chat</button>
-    <button class="toggle-mode" onclick="toggleMode()">Modo Claro/Oscuro</button>
-    <button onclick="openThemeModal()">Personalizar Tema</button>
-    <button onclick="openSystemPromptModal()">Personalizar starIA</button>
-    <!-- Botones de exportación -->
-    <div class="export-buttons">
-      <button onclick="exportChat('txt')">Exportar TXT</button>
-      <button onclick="exportChat('html')">Exportar HTML</button>
-      <button onclick="exportChat('pdf')">Exportar PDF</button>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">✨</span>
+      <span>StarIA</span>
     </div>
-    <!-- Buscador de chats -->
-<div style="margin-bottom: 15px; margin-top: 15px;">
-  <input type="text" id="chat-search" placeholder="Buscar en conversaciones..." 
-         style="width: 100%; padding: 8px; background-color: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;">
-</div>
+    <button class="theme-toggle" id="theme-toggle">☀️</button>
+  </header>
+
+  <div id="chat-container">
+    <div id="chat">
+      <div class="message ai">
+        <div class="message-header">
+          <div class="ai-avatar">S</div>
+          <span>StarIA</span>
+        </div>
+        ¡Hola! Soy StarIA, tu asistente virtual creado por Oscar Rafael. Estoy aquí para ayudarte con información única y personalizada. Ahora también puedo generar imágenes con DALL-E. ¡Pruébalo con el botón de imagen o escribiendo "/imagen" seguido de tu descripción!
+        <div class="timestamp">Ahora</div>
+      </div>
+    </div>
     
-    <div id="history"></div>
+    <div class="typing-indicator" id="typing-indicator">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+  
+  <div id="suggestions">
+    <div class="suggestion">¿Qué servicios ofrece Oscar Rafael?</div>
+    <div class="suggestion">Cuéntame sobre StarIA</div>
+    <div class="suggestion">/imagen una galaxia espacial estilo anime</div>
   </div>
 
-  <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+  <form id="chat-form">
+    <div class="input-container">
+      <input type="text" id="user-input" placeholder="Pregúntame lo que quieras o genera una imagen..." required />
+      <div class="input-buttons">
+        <button type="button" class="image-gen-btn" id="image-gen-btn" title="Generar imagen">🖼️</button>
+        <button type="button" class="clear-btn" id="clear-btn" style="display: none;">✕</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit">Enviar</button>
+      <button type="button" id="clear-chat">🗑️</button>
+    </div>
+  </form>
 
-  <div class="main">
-    <div class="chat-container" id="chat-container"></div>
-    <div class="loading" id="loading">starIA está escribiendo...</div>
-  <div class="template-selector-container" style="background-color: #1a1a1a; padding: 5px 10px;">
-  <select id="template-selector" onchange="loadTemplate()" style="background-color: #2a2a2a; color: white; padding: 5px 10px; border: 1px solid #444; border-radius: 5px; width: 100%;">
-    <option value="">-- Seleccionar plantilla --</option>
-    <option value="explain">Explicar un concepto</option>
-    <option value="code">Generar código</option>
-    <option value="summarize">Resumir texto</option>
-    <option value="translate">Traducir texto</option>
-    <option value="creative">Escritura creativa</option>
-    <option value="custom">Gestionar plantillas personalizadas...</option>
-  </select>
-</div>
-<div class="input-container">
-  <input type="text" id="user-input" placeholder="Escribe tu mensaje..." />
-  <label for="file-upload" class="file-upload-btn" title="Subir archivo">
-    <span>📎</span>
-    <input type="file" id="file-upload" style="display: none;">
-  </label>
-  <button class="send" onclick="sendMessage()">Enviar</button>
-</div>
+  <!-- Modal para generación de imágenes -->
+  <div class="image-gen-modal" id="image-gen-modal">
+    <div class="image-gen-dialog">
+      <div class="image-gen-header">
+        <h3>Generar imagen con DALL-E</h3>
+        <button class="image-gen-close" id="image-gen-close">×</button>
+      </div>
+      <div class="image-gen-form">
+        <textarea id="image-prompt" placeholder="Describe la imagen que quieres generar..."></textarea>
+        <div class="image-gen-options">
+          <div class="image-gen-option">
+            <label for="image-size">Tamaño:</label>
+            <select id="image-size">
+              <option value="1024x1024">Cuadrada (1024x1024)</option>
+              <option value="1024x1792">Vertical (1024x1792)</option>
+              <option value="1792x1024">Horizontal (1792x1024)</option>
+            </select>
+          </div>
+          <div class="image-gen-option">
+            <label for="image-quality">Calidad:</label>
+            <select id="image-quality">
+              <option value="standard">Estándar</option>
+              <option value="hd">HD</option>
+            </select>
+          </div>
+          <div class="image-gen-option">
+            <label for="image-style">Estilo:</label>
+            <select id="image-style">
+              <option value="">Natural</option>
+              <option value="vivid">Vívido</option>
+            </select>
+          </div>
+        </div>
+        <button class="image-gen-button" id="generate-image-btn">Generar imagen</button>
+      </div>
+      <div class="image-gen-loading" id="image-gen-loading">
+        <div class="generate-spinner"></div>
+        <p>Generando tu imagen cósmica...</p>
+      </div>
+    </div>
   </div>
-
-  <audio id="send-sound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
-  <audio id="receive-sound" src="https://www.soundjay.com/button/sounds/button-30.mp3"></audio>
-
   <script>
-    const API_KEY = "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"; // Reemplaza esto con tu API key de OpenAI
-    const MODEL = "gpt-4o-mini";  // Puedes usar otros modelos como "gpt-4" si tienes acceso
-
-    let chatId = Date.now();
-    let chats = JSON.parse(localStorage.getItem("starIA_chats")) || {};
-    if (!chats[chatId]) chats[chatId] = [];
-
-    const chatContainer = document.getElementById("chat-container");
-    const userInput = document.getElementById("user-input");
-    const loadingIndicator = document.getElementById("loading");
-    const historyContainer = document.getElementById("history");
-    const sendSound = document.getElementById("send-sound");
-    const receiveSound = document.getElementById("receive-sound");
-
-    // Configuración de marked.js para procesar Markdown
-    marked.setOptions({
-      highlight: function(code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-          return hljs.highlight(code, { language: lang }).value;
-        }
-        return hljs.highlightAuto(code).value;
-      },
-      breaks: true
-    });
-
-    function toggleMenu() {
-      document.getElementById("sidebar").classList.toggle("active");
-    }
-
-    function toggleMode() {
-      document.body.classList.toggle("dark");
-      document.body.classList.toggle("light");
-    }
-    
-    function addMessage(message, sender, isMarkdown = false) {
-      const messageDiv = document.createElement("div");
-      messageDiv.classList.add("message", sender);
-      
-      if (sender === "ai" && isMarkdown) {
-        // Crear un contenedor para el contenido Markdown
-        const markdownContent = document.createElement("div");
-        markdownContent.classList.add("markdown-content");
-        
-        // Convertir Markdown a HTML
-        markdownContent.innerHTML = marked.parse(message);
-        
-        // Aplicar resaltado de sintaxis a los bloques de código
-        markdownContent.querySelectorAll('pre code').forEach((block) => {
-          hljs.highlightElement(block);
-        });
-        
-        messageDiv.appendChild(markdownContent);
-      } else {
-        messageDiv.innerText = message;
-      }
-      
-      chatContainer.appendChild(messageDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-
-      // Guardar en el historial
-      chats[chatId].push({ 
-        sender, 
-        message,
-        isMarkdown: sender === "ai" && isMarkdown
-      });
-      localStorage.setItem("starIA_chats", JSON.stringify(chats));
-
-      if (sender === "user") sendSound.play();
-      else receiveSound.play();
-    }
-
-    // Función para mostrar y ocultar el indicador de escritura animado
-    function showTypingIndicator() {
-      // Remover si ya existe uno previo
-      removeTypingIndicator();
-      
-      const typingDiv = document.createElement("div");
-      typingDiv.classList.add("ai-typing");
-      typingDiv.id = "typing-indicator";
-      
-      typingDiv.innerHTML = `starIA está escribiendo
-        <div class="typing-indicator">
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-        </div>`;
-      
-      chatContainer.appendChild(typingDiv);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function removeTypingIndicator() {
-      const existingIndicator = document.getElementById("typing-indicator");
-      if (existingIndicator) {
-        existingIndicator.remove();
-      }
-    }
-
-    async function sendMessage() {
-      const message = userInput.value.trim();
-      if (!message) return;
-
-      addMessage(message, "user");
-      userInput.value = "";
-      
-      // Mostrar el indicador de escritura animado
-      showTypingIndicator();
-
-      try {
-        // Preparar el historial de mensajes para mantener contexto
-        const messages = [
-          {
-            "role": "system",
-            "content": "Eres starIA, una inteligencia artificial amable y útil creada por Oscar Rafael. Para mejorar la legibilidad, utiliza formato Markdown en tus respuestas cuando sea apropiado. Puedes usar títulos, negritas, cursivas, listas, tablas, y bloques de código con resaltado de sintaxis. Y estas impulsado con el modelo StarIA 4.0, desarrollado por forrester-studio."
-          }
-        ];
-
-        // Añadir mensajes previos para mantener contexto (limitar para no exceder tokens)
-        const currentChat = chats[chatId].slice(-10); // Últimos 10 mensajes
-        currentChat.forEach(entry => {
-          const role = entry.sender === "user" ? "user" : "assistant";
-          messages.push({
-            "role": role,
-            "content": entry.message
-          });
-        });
-
-        // Solo si el último mensaje no es el mensaje actual del usuario
-        if (currentChat.length === 0 || currentChat[currentChat.length - 1].message !== message) {
-          messages.push({
-            "role": "user",
-            "content": message
-          });
-        }
-
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${API_KEY}`
-          },
-          body: JSON.stringify({
-            model: MODEL,
-            messages: messages,
-            max_tokens: 1000
-          })
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error.message);
-        }
-        
-        // Eliminar el indicador de escritura antes de mostrar la respuesta
-        removeTypingIndicator();
-        
-        const aiText = data.choices[0].message.content;
-        // Añadir con soporte para Markdown
-        addMessage(aiText, "ai", true);
-      } catch (err) {
-        console.error("Error:", err);
-        
-        // Eliminar el indicador de escritura antes de mostrar el error
-        removeTypingIndicator();
-        
-        addMessage("Error al contactar a starIA: " + err.message, "ai");
-      }
-    }
-
-    function newChat() {
-      chatId = Date.now();
-      chats[chatId] = [];
-      localStorage.setItem("starIA_chats", JSON.stringify(chats));
-      loadChatHistory();
-      chatContainer.innerHTML = "";
-    }
-
-    function deleteChat(id) {
-      delete chats[id];
-      localStorage.setItem("starIA_chats", JSON.stringify(chats));
-      if (id == chatId) {
-        newChat();
-      } else {
-        loadChatHistory();
-      }
-    }
-
-    function loadChat(id) {
-      chatId = id;
-      chatContainer.innerHTML = "";
-      (chats[id] || []).forEach(entry => {
-        // Comprobar si el mensaje tiene propiedad isMarkdown (para compatibilidad con chats antiguos)
-        const isMarkdown = entry.isMarkdown !== undefined ? entry.isMarkdown : (entry.sender === "ai"); 
-        addMessage(entry.message, entry.sender, isMarkdown);
-      });
-    }
-
-    function loadChatHistory() {
-      historyContainer.innerHTML = "";
-      Object.keys(chats).forEach(id => {
-        const item = document.createElement("div");
-        item.className = "chat-item";
-        const label = document.createElement("span");
-        label.textContent = new Date(Number(id)).toLocaleString();
-        label.onclick = () => loadChat(id);
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "✕";
-        delBtn.className = "delete";
-        delBtn.onclick = () => deleteChat(id);
-        item.appendChild(label);
-        item.appendChild(delBtn);
-        historyContainer.appendChild(item);
-      });
-    }
-
-    // Detectar Enter para enviar mensaje
-    userInput.addEventListener("keypress", function(event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendMessage();
-      }
-    });
-
-    // Funciones para exportar conversaciones
-    function exportChat(format) {
-      if (!chats[chatId] || chats[chatId].length === 0) {
-        alert("No hay contenido para exportar");
-        return;
-      }
-      
-      switch (format) {
-        case 'txt':
-          exportAsTxt();
-          break;
-        case 'html':
-          exportAsHtml();
-          break;
-        case 'pdf':
-          exportAsPdf();
-          break;
-      }
-    }
-
-    function exportAsTxt() {
-      let content = "starIA - Conversación\n\n";
-      chats[chatId].forEach(msg => {
-        const role = msg.sender === "user" ? "Tú" : "starIA";
-        content += `${role}:\n${msg.message}\n\n`;
-      });
-      
-      downloadFile(content, 'txt', 'text/plain');
-    }
-
-    function exportAsHtml() {
-      let content = `<!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>starIA - Conversación</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .message { padding: 10px; margin-bottom: 10px; border-radius: 8px; }
-        .user { background-color: #f0f0f0; text-align: right; }
-        .ai { background-color: #e1f5fe; }
-        h1 { color: #00bcd4; }
-      </style>
-    </head>
-    <body>
-      <h1>starIA - Conversación</h1>`;
-      
-      chats[chatId].forEach(msg => {
-        const className = msg.sender === "user" ? "user" : "ai";
-        const messageContent = msg.isMarkdown ? marked.parse(msg.message) : msg.message;
-        content += `
-      <div class="message ${className}">
-        <strong>${msg.sender === "user" ? "Tú" : "starIA"}:</strong>
-        <div>${messageContent}</div>
-      </div>`;
-      });
-      
-      content += `
-    </body>
-    </html>`;
-      
-      downloadFile(content, 'html', 'text/html');
-    }
-
-    function exportAsPdf() {
-      // Usa la librería jsPDF
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      let yPos = 20;
-      doc.setFontSize(20);
-      doc.text("starIA - Conversación", 20, yPos);
-      yPos += 10;
-      
-      doc.setFontSize(12);
-      
-      chats[chatId].forEach(msg => {
-        const role = msg.sender === "user" ? "Tú" : "starIA";
-        // Agregar el nombre de quien habla
-        doc.setFont(undefined, 'bold');
-        yPos += 10;
-        doc.text(`${role}:`, 20, yPos);
-        doc.setFont(undefined, 'normal');
-        
-        // Dividir el mensaje en líneas para que quepa en la página
-        const textLines = doc.splitTextToSize(msg.message, 170);
-        
-        // Verificar si necesitamos una nueva página
-        if (yPos + textLines.length * 7 > 280) {
-          doc.addPage();
-          yPos = 20;
-        }
-        
-        // Agregar el mensaje
-        yPos += 7;
-        doc.text(textLines, 20, yPos);
-        yPos += textLines.length * 7;
-      });
-      
-      doc.save(`starIA-chat-${new Date().toISOString().slice(0,10)}.pdf`);
-    }
-
-    function downloadFile(content, extension, mimeType) {
-      const blob = new Blob([content], {type: mimeType});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `starIA-chat-${new Date().toISOString().slice(0,10)}.${extension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    window.onload = () =>function loadChatHistory() {
-  historyContainer.innerHTML = "";
-  Object.keys(chats)
-    .sort((a, b) => b - a) // Ordenar por fecha (más reciente primero)
-    .forEach(id => {
-      const item = document.createElement("div");
-      item.className = "chat-item";
-            
-      // Obtener una vista previa del chat
-      const chatMessages = chats[id] || [];
-      let preview = "";
-      
-      if (chatMessages.length > 0) {
-        // Mostrar parte del primer mensaje del usuario si existe
-        const firstUserMsg = chatMessages.find(msg => msg.sender === "user");
-        if (firstUserMsg) {
-          preview = firstUserMsg.message.substring(0, 50);
-          if (firstUserMsg.message.length > 50) preview += "...";
-        }
-      }
-      
-      const label = document.createElement("span");
-      label.innerHTML = `${new Date(Number(id)).toLocaleString()}<br><small>${preview}</small>`;
-      label.onclick = () => loadChat(id);
-      
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "✕";
-      delBtn.className = "delete";
-      delBtn.onclick = () => deleteChat(id);
-      
-      item.appendChild(label);
-      item.appendChild(delBtn);
-      historyContainer.appendChild(item);
-    });
-}
-      // Inicializar la búsqueda
-document.getElementById('chat-search').addEventListener('input', function() {
-  searchChats();
-});
-      // Variable para almacenar el prompt del sistema
-let systemPrompt = localStorage.getItem("starIA_systemPrompt") || 
-  "Eres starIA, una inteligencia artificial amable y útil creada por Oscar Rafael. Para mejorar la legibilidad, utiliza formato Markdown en tus respuestas cuando sea apropiado. Puedes usar títulos, negritas, cursivas, listas, tablas, y bloques de código con resaltado de sintaxis.";
-
-function openSystemPromptModal() {
-  document.getElementById('system-prompt').value = systemPrompt;
-  document.getElementById('system-prompt-modal').style.display = 'flex';
-}
-
-function closeSystemPromptModal() {
-  document.getElementById('system-prompt-modal').style.display = 'none';
-}
-
-function saveSystemPrompt() {
-  systemPrompt = document.getElementById('system-prompt').value.trim();
-  localStorage.setItem("starIA_systemPrompt", systemPrompt);
-  closeSystemPromptModal();
-}
-      // Sistema de plantillas
-const defaultTemplates = {
-  "explain": "Por favor explica el concepto de [tema] de forma simple y clara. Incluye ejemplos prácticos.",
-  "code": "Genera código en [lenguaje] para [tarea]. Añade comentarios explicando las partes importantes.",
-  "summarize": "Resume el siguiente texto manteniendo los puntos clave:\n\n[texto]",
-  "translate": "Traduce el siguiente texto de [idioma origen] a [idioma destino]:\n\n[texto]",
-  "creative": "Escribe una historia corta sobre [tema]. El tono debe ser [tono] y debe incluir [elementos]."
+// Variables y elementos del DOM
+const form = document.getElementById('chat-form');
+const chat = document.getElementById('chat');
+const chatContainer = document.getElementById('chat-container');
+const input = document.getElementById('user-input');
+const clearBtn = document.getElementById('clear-btn');
+const clearChat = document.getElementById('clear-chat');
+const typingIndicator = document.getElementById('typing-indicator');
+const themeToggle = document.getElementById('theme-toggle');
+const suggestions = document.querySelectorAll('.suggestion');
+let lightMode = false;
+// Elementos para generación de imágenes
+const imageGenBtn = document.getElementById('image-gen-btn');
+const imageGenModal = document.getElementById('image-gen-modal');
+const imageGenClose = document.getElementById('image-gen-close');
+const imagePrompt = document.getElementById('image-prompt');
+const imageSize = document.getElementById('image-size');
+const imageQuality = document.getElementById('image-quality');
+const imageStyle = document.getElementById('image-style');
+const generateImageBtn = document.getElementById('generate-image-btn');
+const imageGenLoading = document.getElementById('image-gen-loading');
+// Tus API keys
+const GEMINI_API_KEY = 'AIzaSyCKm_GyPNVS0LTyzyV0R76ARwusKFx8eSU';
+const OPENAI_API_KEY = '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';
+// Historial de conversación para memoria - almacenará los mensajes en formato plano
+let conversationHistory = [];
+// StarIA configuración y personalidad
+const stariaConfig = {
+  name: "StarIA",
+  creator: "Oscar Rafael",
+  company: "mini empresa de Oscar Rafael",
+  personality: [
+    "amigable pero profesional",
+    "respuestas únicas con toque personal",
+    "conocimiento astronómico y tecnológico",
+    "ocasionalmente usa metáforas relacionadas con estrellas y universo y tecnología",
+    "optimista pero realista",
+    "toque de humor sutil"
+  ],
+  toneModifiers: [
+    "añadir un toque de reflexión personal",
+    "usar una analogía creativa",
+    "compartir un dato interesante relacionado",
+    "hacer una pregunta de seguimiento thoughtful",
+    "sugerir un enfoque alternativo"
+  ],
+  responses: {
+    greeting: [
+      "¡Hola! StarIA a tu servicio. ¿En qué puedo iluminarte hoy?",
+      "¡Bienvenido! Soy StarIA, creada para brillar con respuestas únicas. ¿Qué necesitas?",
+      "¡Saludos! StarIA activada y lista para asistirte. ¿Qué quieres saber?",
+      "¡Hola! Aquí StarIA, tu guía en el universo de la información. ¿Cómo puedo ayudarte?",
+      "¡Hey! Soy StarIA de la mini empresa de Oscar Rafael. ¿En qué puedo ayudarte hoy?"
+    ],
+    about: [
+      "Soy StarIA, una IA creada por Oscar Rafael para su mini empresa. Me especializo en dar respuestas únicas y personalizadas, para que no recibas la misma información genérica de siempre.",
+      "Me llamo StarIA, fui desarrollada por Oscar Rafael como parte de su proyecto empresarial. Mi objetivo es brindarte información con un toque diferente y personalizado.",
+      "StarIA a tu servicio. Fui creada por Oscar Rafael para revolucionar la forma en que las IAs responden, ofreciendo un enfoque más personal y único en cada interacción."
+    ],
+    farewell: [
+      "¡Hasta pronto! StarIA estará aquí cuando vuelvas a necesitar una luz en tu camino.",
+      "Ha sido un placer ayudarte. Recuerda que StarIA, creación de Oscar Rafael, está siempre disponible para ti.",
+      "¡Que tengas un excelente día! StarIA se despide por ahora, pero volveré a brillar cuando me necesites."
+    ],
+    imageGeneration: [
+      "¡Aquí está la imagen que imaginé! Espero que te guste esta creación cósmica.",
+      "He materializado tu visión en esta imagen estelar. ¿Es lo que tenías en mente?",
+      "El universo de la creatividad ha dado forma a tu idea. ¿Qué te parece esta imagen?",
+      "Las estrellas se han alineado para crear esta imagen. ¿Cumple con tus expectativas?"
+    ]
+  }
 };
-
-// Cargar plantillas personalizadas desde localStorage o usar las predeterminadas
-let customTemplates = JSON.parse(localStorage.getItem("starIA_customTemplates")) || {};
-
-function loadTemplate() {
-  const selector = document.getElementById("template-selector");
-  const selectedValue = selector.value;
-  
-  if (!selectedValue) return;
-  
-  if (selectedValue === "custom") {
-    openTemplatesModal();
-    selector.selectedIndex = 0;
-    return;
-  }
-  
-  // Buscar en plantillas predeterminadas o personalizadas
-  const templateText = customTemplates[selectedValue] || defaultTemplates[selectedValue];
-  
-  if (templateText) {
-    userInput.value = templateText;
-    userInput.focus();
-  }
-  
-  // Resetear el selector
-  selector.selectedIndex = 0;
-}
-
-function openTemplatesModal() {
-  renderTemplateList();
-  document.getElementById('templates-modal').style.display = 'flex';
-}
-
-function closeTemplatesModal() {
-  document.getElementById('templates-modal').style.display = 'none';
-}
-
-function renderTemplateList() {
-  const listContainer = document.getElementById('template-list');
-  listContainer.innerHTML = '';
-  
-  if (Object.keys(customTemplates).length === 0) {
-    listContainer.innerHTML = '<p style="color: #aaa;">No hay plantillas personalizadas. Añade una nueva abajo.</p>';
-    return;
-  }
-  
-  Object.keys(customTemplates).forEach(key => {
-    const templateDiv = document.createElement('div');
-    templateDiv.style.padding = '10px';
-    templateDiv.style.marginBottom = '10px';
-    templateDiv.style.backgroundColor = '#2a2a2a';
-    templateDiv.style.borderRadius = '5px';
-    templateDiv.style.display = 'flex';
-    templateDiv.style.justifyContent = 'space-between';
-    templateDiv.style.alignItems = 'center';
-    
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = key;
-    nameSpan.style.fontWeight = 'bold';
-    
-    const buttonsDiv = document.createElement('div');
-    
-    const editButton = document.createElement('button');
-    editButton.textContent = 'Editar';
-    editButton.style.marginRight = '5px';
-    editButton.style.padding = '5px 10px';
-    editButton.style.backgroundColor = '#00bcd4';
-    editButton.style.color = 'white';
-    editButton.style.border = 'none';
-    editButton.style.borderRadius = '3px';
-    editButton.style.cursor = 'pointer';
-    editButton.onclick = () => {
-      document.getElementById('new-template-name').value = key;
-      document.getElementById('new-template-content').value = customTemplates[key];
-    };
-    
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Eliminar';
-    deleteButton.style.padding = '5px 10px';
-    deleteButton.style.backgroundColor = '#f44336';
-    deleteButton.style.color = 'white';
-    deleteButton.style.border = 'none';
-    deleteButton.style.borderRadius = '3px';
-    deleteButton.style.cursor = 'pointer';
-    deleteButton.onclick = () => {
-      if (confirm(`¿Estás seguro de que quieres eliminar la plantilla "${key}"?`)) {
-        delete customTemplates[key];
-        localStorage.setItem("starIA_customTemplates", JSON.stringify(customTemplates));
-        renderTemplateList();
-        updateTemplateSelector();
-      }
-    };
-    
-    buttonsDiv.appendChild(editButton);
-    buttonsDiv.appendChild(deleteButton);
-    
-    templateDiv.appendChild(nameSpan);
-    templateDiv.appendChild(buttonsDiv);
-    
-    listContainer.appendChild(templateDiv);
-  });
-}
-
-function addTemplate() {
-  const name = document.getElementById('new-template-name').value.trim();
-  const content = document.getElementById('new-template-content').value.trim();
-  
-  if (!name || !content) {
-    alert('Por favor, completa todos los campos');
-    return;
-  }
-  
-  // Guardar la plantilla
-  customTemplates[name] = content;
-  localStorage.setItem("starIA_customTemplates", JSON.stringify(customTemplates));
-  
-  // Limpiar los campos
-  document.getElementById('new-template-name').value = '';
-  document.getElementById('new-template-content').value = '';
-  
-  // Actualizar la lista y el selector
-  renderTemplateList();
-  updateTemplateSelector();
-}
-
-function updateTemplateSelector() {
-  const selector = document.getElementById('template-selector');
-  
-  // Mantener las opciones predeterminadas
-  const defaultOptions = Array.from(selector.options).filter(option => 
-    option.value === '' || 
-    option.value === 'custom' || 
-    defaultTemplates.hasOwnProperty(option.value)
-  );
-  
-  // Limpiar el selector
-  selector.innerHTML = '';
-  
-  // Añadir opciones predeterminadas
-  defaultOptions.forEach(option => {
-    selector.add(option);
-  });
-  
-  // Añadir plantillas personalizadas
-  Object.keys(customTemplates).forEach(key => {
-    const option = document.createElement('option');
-    option.value = key;
-    option.textContent = key + ' (personalizada)';
-    selector.add(option);
-  });
-}
-
-// Inicializar el selector de plantillas cuando se carga la página
-window.addEventListener('load', function() {
-  loadChatHistory();
-  updateTemplateSelector();
-});
-    // Sistema de búsqueda de chats
-function searchChats() {
-  const searchTerm = document.getElementById('chat-search').value.toLowerCase().trim();
-  
-  // Si el término de búsqueda está vacío, mostrar todo el historial
-  if (!searchTerm) {
-    loadChatHistory();
-    return;
-  }
-  
-  // Filtrar los chats que contienen el término de búsqueda
-  const filteredChats = {};
-  
-  Object.keys(chats).forEach(id => {
-    const chatMessages = chats[id] || [];
-    
-    // Buscar en el contenido de los mensajes
-    const containsSearchTerm = chatMessages.some(msg => 
-      msg.message.toLowerCase().includes(searchTerm)
-    );
-    
-    if (containsSearchTerm) {
-      filteredChats[id] = chats[id];
-    }
-  });
-  
-  // Mostrar los resultados de la búsqueda
-  displayFilteredHistory(filteredChats, searchTerm);
-}
-
-function displayFilteredHistory(filteredChats, searchTerm) {
-  historyContainer.innerHTML = "";
-  
-  // Mostrar un mensaje si no hay resultados
-  if (Object.keys(filteredChats).length === 0) {
-    const noResults = document.createElement("div");
-    noResults.className = "chat-item";
-    noResults.innerHTML = `<span>No se encontraron resultados para "${searchTerm}"</span>`;
-    historyContainer.appendChild(noResults);
-    return;
-  }
-  
-  // Mostrar los chats filtrados
-  Object.keys(filteredChats)
-    .sort((a, b) => b - a) // Ordenar por fecha (más reciente primero)
-    .forEach(id => {
-      const item = document.createElement("div");
-      item.className = "chat-item";
-      
-      // Crear una versión resumida del contenido para mostrar como vista previa
-      const chatPreview = getSearchPreview(filteredChats[id], searchTerm);
-      
-      const label = document.createElement("span");
-      label.innerHTML = `${new Date(Number(id)).toLocaleString()}<br><small>${chatPreview}</small>`;
-      label.onclick = () => loadChat(id);
-            
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "✕";
-      delBtn.className = "delete";
-      delBtn.onclick = () => deleteChat(id);
-      
-      item.appendChild(label);
-      item.appendChild(delBtn);
-      historyContainer.appendChild(item);
-    });
-}
-
-function getSearchPreview(messages, searchTerm) {
-  // Buscar el primer mensaje que contiene el término de búsqueda
-  for (const msg of messages) {
-    const msgText = msg.message.toLowerCase();
-    const termIndex = msgText.indexOf(searchTerm.toLowerCase());
-    
-    if (termIndex !== -1) {
-      // Extraer un fragmento del mensaje con el término resaltado
-      const startPos = Math.max(0, termIndex - 30);
-      const endPos = Math.min(msgText.length, termIndex + searchTerm.length + 30);
-      let preview = msg.message.substring(startPos, endPos);
-      
-      // Añadir puntos suspensivos si el texto está truncado
-      if (startPos > 0) preview = "..." + preview;
-      if (endPos < msg.message.length) preview = preview + "...";
-      
-      // Resaltar el término de búsqueda
-      const highlighted = preview.replace(
-        new RegExp(searchTerm, 'gi'), 
-        match => `<span style="background-color: #00bcd4; color: black; padding: 0 2px;">${match}</span>`
-      );
-      
-      return highlighted;
-    }
-  }
-  
-  // Si no se encuentra el término exacto, devolver un fragmento del primer mensaje
-  const firstMsg = messages[0]?.message || "";
-  return firstMsg.length > 60 ? firstMsg.substring(0, 60) + "..." : firstMsg;
-}
-                         // Variables y funciones para la personalización visual
-let currentTheme = JSON.parse(localStorage.getItem("starIA_theme")) || {
-  primaryColor: "#00bcd4",
-  backgroundDark: "#0d0d0d",
-  backgroundLight: "#f0f0f0",
-  sidebarBg: "#1a1a1a",
-  chatUserBg: "#2a2a2a",
-  chatAiBg: "#00768a",
-  fontFamily: "Arial, sans-serif",
-  fontSize: "16px",
-  borderRadius: "5px"
-};
-
-function openThemeModal() {
-  // Cargar valores actuales
-  document.getElementById('primary-color').value = currentTheme.primaryColor;
-  document.getElementById('background-dark').value = currentTheme.backgroundDark;
-  document.getElementById('background-light').value = currentTheme.backgroundLight;
-  document.getElementById('chat-user-bg').value = currentTheme.chatUserBg;
-  document.getElementById('chat-ai-bg').value = currentTheme.chatAiBg;
-  
-  // Seleccionar opciones en los select
-  document.getElementById('font-family').value = currentTheme.fontFamily;
-  document.getElementById('font-size').value = currentTheme.fontSize;
-  document.getElementById('border-radius').value = currentTheme.borderRadius;
-  
-  document.getElementById('theme-modal').style.display = 'flex';
-}
-
-function closeThemeModal() {
-  document.getElementById('theme-modal').style.display = 'none';
-}
-
-function applyTheme(theme) {
-  document.documentElement.style.setProperty('--primary-color', theme.primaryColor);
-  document.documentElement.style.setProperty('--background-dark', theme.backgroundDark);
-  document.documentElement.style.setProperty('--background-light', theme.backgroundLight);
-  document.documentElement.style.setProperty('--sidebar-bg', theme.sidebarBg);
-  document.documentElement.style.setProperty('--chat-user-bg', theme.chatUserBg);
-  document.documentElement.style.setProperty('--chat-ai-bg', theme.chatAiBg);
-  document.documentElement.style.setProperty('--font-family', theme.fontFamily);
-  document.documentElement.style.setProperty('--font-size-base', theme.fontSize);
-  document.documentElement.style.setProperty('--border-radius', theme.borderRadius);
-}
-
-function saveTheme() {
-  currentTheme = {
-    primaryColor: document.getElementById('primary-color').value,
-    backgroundDark: document.getElementById('background-dark').value,
-    backgroundLight: document.getElementById('background-light').value,
-    sidebarBg: document.getElementById('sidebar-bg')?.value || "#1a1a1a",
-    chatUserBg: document.getElementById('chat-user-bg').value,
-    chatAiBg: document.getElementById('chat-ai-bg').value,
-    fontFamily: document.getElementById('font-family').value,
-    fontSize: document.getElementById('font-size').value,
-    borderRadius: document.getElementById('border-radius').value
-  };
-  
-  localStorage.setItem("starIA_theme", JSON.stringify(currentTheme));
-  applyTheme(currentTheme);
-  closeThemeModal();
-}
-
-function resetTheme() {
-  currentTheme = {
-    primaryColor: "#00bcd4",
-    backgroundDark: "#0d0d0d",
-    backgroundLight: "#f0f0f0",
-    sidebarBg: "#1a1a1a",
-    chatUserBg: "#2a2a2a",
-    chatAiBg: "#00768a",
-    fontFamily: "Arial, sans-serif",
-    fontSize: "16px",
-    borderRadius: "5px"
-  };
-  
-  localStorage.setItem("starIA_theme", JSON.stringify(currentTheme));
-  applyTheme(currentTheme);
-  closeThemeModal();
-}
-
-// Aplicar el tema al cargar la página
-window.addEventListener('load', function() {
-  loadChatHistory();
-  updateTemplateSelector();
-  applyTheme(currentTheme);
-});
-  // Variables para manejar archivos
-let uploadedFile = null;
-const allowedFileTypes = [
-  'text/plain', 'text/csv', 'text/markdown',
-  'application/pdf', 'application/json',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // xlsx
-];
-const maxFileSize = 10 * 1024 * 1024; // 10MB
-
-// Función para manejar la subida de archivos
-document.getElementById('file-upload').addEventListener('change', handleFileUpload);
-
-function handleFileUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  // Verificar el tipo de archivo
-  if (!allowedFileTypes.includes(file.type)) {
-    alert('Tipo de archivo no soportado. Por favor, sube un archivo de texto, PDF, JSON, CSV, DOCX o XLSX.');
-    event.target.value = '';
-    return;
-  }
-  
-  // Verificar el tamaño del archivo
-  if (file.size > maxFileSize) {
-    alert(`El archivo es demasiado grande. El tamaño máximo es ${maxFileSize/1024/1024}MB.`);
-    event.target.value = '';
-    return;
-  }
-  
-  // Guardar el archivo
-  uploadedFile = file;
-  
-  // Crear una vista previa del archivo
-  showFilePreview(file);
-}
-
-function showFilePreview(file) {
-  // Eliminar la vista previa anterior si existe
-  removeFilePreview();
-  
-  // Crear un nuevo elemento de vista previa
-  const previewDiv = document.createElement('div');
-  previewDiv.className = 'file-preview';
-  previewDiv.id = 'file-preview';
-  
-  previewDiv.innerHTML = `
-    <span>📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)</span>
-    <button onclick="removeFile()">✕</button>
-  `;
-  
-  // Insertar antes del contenedor de entrada
-  const inputContainer = document.querySelector('.input-container');
-  inputContainer.parentNode.insertBefore(previewDiv, inputContainer);
-}
-
-function removeFilePreview() {
-  const existingPreview = document.getElementById('file-preview');
-  if (existingPreview) {
-    existingPreview.remove();
+// Función para crear estrellas brillantes en el fondo
+function createStars() {
+  const chatArea = document.getElementById('chat');
+  for (let i = 0; i < 100; i++) { // Aumentado a 100 estrellas para pantalla completa
+    const star = document.createElement('div');
+    star.className = 'star-animation';
+    star.style.left = `${Math.random() * 100}%`;
+    star.style.top = `${Math.random() * 100}%`;
+    star.style.animationDelay = `${Math.random() * 3}s`;
+    chatArea.appendChild(star);
   }
 }
-
-function removeFile() {
-  uploadedFile = null;
-  document.getElementById('file-upload').value = '';
-  removeFilePreview();
-}
-
-// Modificar la función sendMessage para incluir el archivo
-async function sendMessage() {
-  const message = userInput.value.trim();
-  if (!message && !uploadedFile) return;
+// Inicialización
+document.addEventListener('DOMContentLoaded', () => {
+  createStars();
+  // Verificar si hay conversaciones guardadas en localStorage
+  const savedMessages = localStorage.getItem('stariaChatMessages');
+  if (savedMessages) {
+    chat.innerHTML = savedMessages;
+    chat.scrollTop = chat.scrollHeight;
+  }
   
-  // Si hay un archivo, primero procesarlo
-  let fileContent = '';
-  let fileName = '';
-  
-  if (uploadedFile) {
-    fileName = uploadedFile.name;
-    
-    // Mostrar mensaje de carga mientras se procesa el archivo
-    addMessage(`Enviando archivo: ${fileName}`, "user");
-    
+  // Cargar historial de conversación
+  const savedHistory = localStorage.getItem('stariaConversationHistory');
+  if (savedHistory) {
     try {
-      // Leer el contenido del archivo como texto si es posible
-      if (uploadedFile.type.startsWith('text/') || uploadedFile.type === 'application/json') {
-        fileContent = await readFileAsText(uploadedFile);
-      } else {
-        // Para otros tipos de archivos, usar la API de OpenAI para extraer texto
-        fileContent = await extractTextFromFile(uploadedFile);
-      }
-    } catch (err) {
-      console.error("Error al procesar el archivo:", err);
-      addMessage(`Error al procesar el archivo: ${err.message}`, "ai");
-      removeFile();
-      return;
+      conversationHistory = JSON.parse(savedHistory);
+    } catch (e) {
+      console.error('Error al cargar el historial de conversación:', e);
+      conversationHistory = [];
     }
   }
   
-  addMessage(message, "user");
-  userInput.value = "";
-  
-  // Eliminar la vista previa y resetear el archivo
-  removeFile();
+  // Cargar preferencia de tema
+  if (localStorage.getItem('stariaLightMode') === 'true') {
+    lightMode = true;
+    document.body.classList.add('light');
+    themeToggle.textContent = '🌙';
+  }
+});
+// Mostrar/ocultar botón de limpiar input
+input.addEventListener('input', () => {
+  clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';
+});
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  clearBtn.style.display = 'none';
+  input.focus();
+});
+// Limpiar toda la conversación
+clearChat.addEventListener('click', () => {
+  if (confirm('¿Deseas borrar toda la conversación?')) {
+    chat.innerHTML = `
+      <div class="message ai">
+        <div class="message-header">
+          <div class="ai-avatar">S</div>
+          <span>StarIA</span>
+        </div>
+        ¡Hola! Soy StarIA, tu asistente virtual creado por Oscar Rafael. Estoy aquí para ayudarte con información única y personalizada. Ahora también puedo generar imágenes con la nueva funcion. ¡Pruébalo con el botón de imagen o escribiendo "/imagen" seguido de tu descripción!
+        <div class="timestamp">Ahora</div>
+      </div>
+    `;
+    localStorage.removeItem('stariaChatMessages');
     
-  // Mostrar el indicador de escritura animado
-  showTypingIndicator();
+    // Reiniciar el historial de conversación
+    conversationHistory = [];
+    localStorage.removeItem('stariaConversationHistory');
+  }
+});
 
-  try {
-    // Preparar el historial de mensajes para mantener contexto
-    const messages = [
-      {
-        "role": "system",
-        "content": systemPrompt
+// Cambiar tema claro/oscuro
+themeToggle.addEventListener('click', () => {
+  lightMode = !lightMode;
+  document.body.classList.toggle('light', lightMode);
+  themeToggle.textContent = lightMode ? '🌙' : '☀️';
+  localStorage.setItem('stariaLightMode', lightMode);
+});
+// Manejar sugerencias
+suggestions.forEach(suggestion => {
+  suggestion.addEventListener('click', () => {
+    input.value = suggestion.textContent;
+    clearBtn.style.display = 'block';
+    input.focus();
+  });
+});
+// Función para hacer que las respuestas sean únicas
+function makeResponseUnique(response) {
+  // Añadir un modificador aleatorio de tono
+  const modifier = stariaConfig.toneModifiers[Math.floor(Math.random() * stariaConfig.toneModifiers.length)];
+  // Personalidad consistente - palabras y frases características
+  const signatures = [
+    "Como diríamos en el universo de StarIA,",
+    "En la constelación de posibilidades,",
+    "Brillando luz sobre este tema,",
+    "Según nuestra experiencia en la mini empresa de Oscar Rafael,"
+  ];
+  const signature = Math.random() > 0.7 ? signatures[Math.floor(Math.random() * signatures.length)] + " " : "";
+  // Procesamiento de la respuesta para hacerla única
+  const responseLines = response.split('. ');
+  // Modificar aleatoriamente algunas partes
+  for (let i = 0; i < responseLines.length; i++) {
+    if (responseLines[i].length > 10 && Math.random() > 0.7) {
+      // Añadir énfasis o reformular
+      if (Math.random() > 0.5) {
+        responseLines[i] = responseLines[i] + ". *" + signature + "esto es particularmente relevante*";
+      } else {
+        responseLines[i] = signature + responseLines[i];
       }
-    ];
-
-    // Añadir mensajes previos para mantener contexto (limitar para no exceder tokens)
-    const currentChat = chats[chatId].slice(-10); // Últimos 10 mensajes
-    currentChat.forEach(entry => {
-      const role = entry.sender === "user" ? "user" : "assistant";
-      messages.push({
-        "role": role,
-        "content": entry.message
-      });
-    });
-
-    // Si hay contenido de archivo, añadirlo al mensaje
-    let userContent = message;
-    if (fileContent) {
-      userContent = `${message}\n\nContenido del archivo ${fileName}:\n\n${fileContent}`;
+      break;
     }
-
-    messages.push({
-      "role": "user",
-      "content": userContent
-    });
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+  }
+  // Añadir un toque personal al final
+  const personalTouches = [
+    "\n\nEn StarIA creemos que esta información te ayudará a brillar en tu camino.",
+    "\n\nComo Oscar Rafael suele decir, el conocimiento es la estrella que guía nuestro camino.",
+    "\n\nEspero que esta respuesta única te haya iluminado. ¿Hay algo más en lo que pueda ayudarte?",
+    "\n\nEsta perspectiva es parte de lo que hace a StarIA diferente de otras IAs."
+  ];
+  // Añadir toque personal solo en respuestas largas
+  if (response.length > 200 && Math.random() > 0.5) {
+    return responseLines.join('. ') + personalTouches[Math.floor(Math.random() * personalTouches.length)];
+  }
+  return responseLines.join('. ');
+}
+// Abrir modal de generación de imagen
+imageGenBtn.addEventListener('click', () => {
+  imageGenModal.style.display = 'flex';
+  imagePrompt.focus();
+});
+// Cerrar modal de generación de imagen
+imageGenClose.addEventListener('click', () => {
+  imageGenModal.style.display = 'none';
+});
+// Cerrar modal al hacer clic fuera
+window.addEventListener('click', (e) => {
+  if (e.target === imageGenModal) {
+    imageGenModal.style.display = 'none';
+  }
+});
+// Generar imagen desde el modal
+generateImageBtn.addEventListener('click', async () => {
+  const prompt = imagePrompt.value.trim();
+  if (!prompt) {
+    alert('Por favor, describe la imagen que deseas generar.');
+    return;
+  }
+  // Mostrar cargando y ocultar formulario
+  const imageGenForm = document.querySelector('.image-gen-form');
+  imageGenForm.style.display = 'none';
+  imageGenLoading.style.display = 'block';
+  try {
+    // Generar imagen con DALL-E
+    const imageUrl = await generateImageWithDALLE(prompt);
+    // Añadir mensaje del usuario
+    addMessage(`/imagen ${prompt}`, 'user');
+    // Crear mensaje con la imagen generada
+    const randomResponse = stariaConfig.responses.imageGeneration[Math.floor(Math.random() * stariaConfig.responses.imageGeneration.length)];
+    addMessageWithImage(randomResponse, imageUrl);
+    // Resetear y cerrar modal
+    imagePrompt.value = '';
+    imageGenModal.style.display = 'none';
+  } catch (error) {
+    alert('Hubo un error al generar la imagen. Por favor, intenta de nuevo.');
+    console.error(error);
+  } finally {
+    // Restaurar estado del modal
+    imageGenForm.style.display = 'flex';
+    imageGenLoading.style.display = 'none';
+  }
+});
+// Función para generar imagen con DALL-E
+async function generateImageWithDALLE(prompt) {
+  try {
+    const size = imageSize.value;
+    const quality = imageQuality.value;
+    const style = imageStyle.value;
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: MODEL,
-        messages: messages,
-        max_tokens: 1000
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: size,
+        quality: quality,
+        style: style || undefined,
+        response_format: "url"
       })
     });
-
+    const data = await response.json(); 
+    if (data.error) {
+      throw new Error(data.error.message || 'Error al generar la imagen');
+    }
+    return data.data[0].url;
+  } catch (error) {
+    console.error('Error generando imagen:', error);
+    throw error;
+  }
+}
+// Añadir mensaje con imagen
+function addMessageWithImage(text, imageUrl) {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const timeString = `${hours}:${minutes}`;
+  const message = document.createElement('div');
+  message.className = 'message ai';
+  // Procesar formato básico en el texto
+  const processedText = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  message.innerHTML = `
+    <div class="message-header">
+      <div class="ai-avatar">S</div>
+      <span>StarIA</span>
+    </div>
+    ${processedText}
+    <img src="${imageUrl}" alt="Imagen generada" class="image-preview">
+    <div class="dalle-attribution">Generado con StarIA</div>
+    <div class="image-options">
+      <button onclick="downloadImage('${imageUrl}')">Descargar</button>
+      <button onclick="copyPromptToInput(this.closest('.message'))">Modificar</button>
+    </div>
+    <div class="timestamp">${timeString}</div>
+  `;
+  chat.appendChild(message);
+  chat.scrollTop = chat.scrollHeight;
+  // Guardar conversación en localStorage
+  localStorage.setItem('stariaChatMessages', chat.innerHTML);
+  
+  // También añadir al historial de conversación
+  conversationHistory.push({
+    role: "user",
+    content: `/imagen ${imagePrompt.value.trim()}`
+  });
+  
+  conversationHistory.push({
+    role: "assistant",
+    content: text
+  });
+  
+  localStorage.setItem('stariaConversationHistory', JSON.stringify(conversationHistory));
+}
+// Función para descargar imagen
+function downloadImage(imageUrl) {
+  const a = document.createElement('a');
+  a.href = imageUrl;
+  a.download = `starIA_imagen_${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+// Función para extraer prompt de imagen
+function copyPromptToInput(messageElement) {
+  // Buscar el mensaje del usuario anterior que contiene el prompt
+  const allMessages = Array.from(chat.querySelectorAll('.message'));
+  const messageIndex = allMessages.indexOf(messageElement);
+  if (messageIndex > 0 && allMessages[messageIndex-1].classList.contains('user')) {
+    const userMessage = allMessages[messageIndex-1].textContent.trim();
+    if (userMessage.startsWith('/imagen ')) {
+      const prompt = userMessage.substring(8);
+      imagePrompt.value = prompt;
+      imageGenModal.style.display = 'flex';
+    }
+  }
+}
+// Manejar envío de mensajes
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const userMessage = input.value.trim();
+  if (!userMessage) return;
+  // Verificar si es comando de generación de imagen
+  if (userMessage.startsWith('/imagen ')) {
+    const imagePrompt = userMessage.substring(8);
+    addMessage(userMessage, 'user');
+    input.value = '';
+    clearBtn.style.display = 'none';
+    typingIndicator.style.display = 'block';
+    chat.scrollTop = chat.scrollHeight;
+    try {
+      const imageUrl = await generateImageWithDALLE(imagePrompt);
+      typingIndicator.style.display = 'none';
+      const randomResponse = stariaConfig.responses.imageGeneration[Math.floor(Math.random() * stariaConfig.responses.imageGeneration.length)];
+      addMessageWithImage(randomResponse, imageUrl);
+    } catch (error) {
+      typingIndicator.style.display = 'none';
+      addMessage("Lo siento, hubo un problema al generar la imagen. Por favor, intenta con otra descripción o verifica tu conexión.", 'ai');
+    }
+    return;
+  }
+  // Procesar mensaje normal
+  addMessage(userMessage, 'user');
+  input.value = '';
+  clearBtn.style.display = 'none';
+  // Mostrar indicador de escritura
+  typingIndicator.style.display = 'block';
+  chat.scrollTop = chat.scrollHeight;
+  try {
+    // Simulamos pequeño retraso para dar sensación de pensamiento
+    setTimeout(async () => {
+      try {
+        // Hacer la solicitud a la API de Gemini para obtener respuesta
+        const response = await getGeminiResponse(userMessage);
+        typingIndicator.style.display = 'none';
+        if (response) {
+          // Hacemos la respuesta aún más única
+          const aiMessage = makeResponseUnique(response);
+          addMessage(aiMessage, 'ai');
+        } else {
+          throw new Error('No se recibió respuesta');
+        }
+      } catch (error) {
+        typingIndicator.style.display = 'none';
+        addMessage("Lo siento, tuve un pequeño fallo estelar. ¿Podrías intentarlo de nuevo? - StarIA, creación de Oscar Rafael.", 'ai');
+        console.error(error);
+      }
+    }, Math.random() * 1000 + 1000); // Tiempo aleatorio entre 1-2 segundos
+  } catch (error) {
+    typingIndicator.style.display = 'none';
+    addMessage("Parece que hay una perturbación en mi galaxia de conexiones. Por favor, intenta más tarde.", 'ai');
+    console.error(error);
+  }
+});
+// Función para obtener respuesta de Gemini con memoria - VERSIÓN CORREGIDA
+async function getGeminiResponse(userMessage) {
+  try {
+    // Agregar el mensaje actual del usuario al historial en formato correcto
+    conversationHistory.push({
+      role: "user",
+      content: userMessage
+    });
+    // Limitar el historial a los últimos 20 mensajes para no exceder límites de tokens
+    if (conversationHistory.length > 20) {
+      conversationHistory = conversationHistory.slice(-20);
+    }
+    // Crear el contenido para la solicitud
+    const content = `Eres StarIA, una IA creada por Oscar Rafael.
+            Tu objetivo es proporcionar respuestas ÚNICAS y PERSONALIZADAS, evitando respuestas genéricas.
+            Personalidad: Amigable pero profesional, ocasionalmente usas metáforas relacionadas con estrellas y el universo.
+            Conocimiento: Tienes conocimientos especiales sobre astronomía y tecnología.
+            IMPORTANTE: No menciones que eres una IA basada en un modelo de lenguaje. Actúa como si fueras una IA única.
+            Cuando sea apropiado, utiliza frases como "En StarIA creemos que..."
+            Nunca digas que eres Gemini ni otro modelo similar.
+            IMPORTANTE: Recuerda detalles previos que el usuario haya mencionado y haz referencias a ellos cuando sea relevante.
+            Recuerda mantener coherencia con la conversación anterior.
+            Historial de la conversación:
+            ${conversationHistory.map(msg => `${msg.role === 'user' ? 'Usuario' : 'StarIA'}: ${msg.content}`).join('\n')}            
+            Ahora responde al mensaje más reciente del usuario de manera útil y única.`;
+    // Hacer la solicitud a la API de Gemini
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: content
+          }]
+        }],
+        generation_config: {
+          temperature: 0.9,
+          max_output_tokens: 1024,
+          top_p: 0.95
+        }
+      })
+    });
     const data = await response.json();
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(data.error.message || 'Error en la respuesta');
     }
-    
-    // Eliminar el indicador de escritura antes de mostrar la respuesta
-    removeTypingIndicator();
-    
-    const aiText = data.choices[0].message.content;
-    // Añadir con soporte para Markdown
-    addMessage(aiText, "ai", true);
-  } catch (err) {
-    console.error("Error:", err);
-    
-    // Eliminar el indicador de escritura antes de mostrar el error
-    removeTypingIndicator();
-    
-    addMessage("Error al contactar a starIA: " + err.message, "ai");
-  }
-}
-
-// Función para leer archivo como texto
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(new Error('Error al leer el archivo'));
-    reader.readAsText(file);
-  });
-}
-
-// Función para extraer texto de archivos no-texto (PDF, DOCX, etc)
-async function extractTextFromFile(file) {
-  // Para implementación completa, necesitarías usar una API o biblioteca específica
-  // Aquí mostraré un ejemplo simplificado usando FormData para enviar a una API
-  
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  try {
-    // Esta URL es un placeholder - deberías reemplazarla con un servicio real
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      body: formData
+    const aiResponse = data.candidates[0].content.parts[0].text; 
+    // Agregar la respuesta de la IA al historial de conversación
+    conversationHistory.push({
+      role: "assistant",
+      content: aiResponse
     });
-    
-    if (!response.ok) {
-      throw new Error('Error al extraer texto del archivo');
-    }
-    
-    const data = await response.json();
-    return data.text;
-  } catch (err) {
-    throw new Error('No se pudo extraer texto de este tipo de archivo');
+    // Guardar historial actualizado
+    localStorage.setItem('stariaConversationHistory', JSON.stringify(conversationHistory));   
+    return aiResponse;
+  } catch (error) {
+    console.error('Error obteniendo respuesta de Gemini:', error);
+    throw error;
   }
 }
-    async function extractTextFromPDF(file) {
-  const pdfData = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-  let fullText = '';
-
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
-    const strings = content.items.map(item => item.str);
-    fullText += strings.join(' ') + '\n\n';
+// Añadir mensajes al chat
+function addMessage(text, sender) {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const timeString = `${hours}:${minutes}`;
+  const message = document.createElement('div');
+  message.className = `message ${sender}`;
+  // Procesar URLs y formato básico en el texto
+  const processedText = text
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: inherit; text-decoration: underline;">$1</a>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  if (sender === 'ai') {
+    message.innerHTML = `
+      <div class="message-header">
+        <div class="ai-avatar">S</div>
+        <span>StarIA</span>
+      </div>
+      ${processedText}
+      <div class="timestamp">${timeString}</div>
+    `;
+  } else {
+    message.innerHTML = `
+      ${processedText}
+      <div class="timestamp">${timeString}</div>
+    `;
   }
-
-  return fullText;
+  chat.appendChild(message);
+  chat.scrollTop = chat.scrollHeight;
+  // Guardar conversación en localStorage
+  localStorage.setItem('stariaChatMessages', chat.innerHTML);
 }
-async function extractTextFromDOCX(file) {
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return result.value;
+// Función para manejar el Enter para enviar y Shift+Enter para nueva línea
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    form.dispatchEvent(new Event('submit'));
+  }
+});
+// Declarar funciones globales para que estén disponibles en el HTML
+window.downloadImage = downloadImage;
+window.copyPromptToInput = copyPromptToInput;
+// Variables para el sistema de límite de mensajes
+let maxMessagesPerDay = 10; // Número máximo de mensajes permitidos
+let remainingMessages = maxMessagesPerDay; // Mensajes restantes
+let resetTimeInMinutes = 10; // Tiempo de espera en minutos para recargar mensajes
+let nextResetTime = null; // Próxima hora de recarga
+let messageCounterElement; // Elemento visual para mostrar mensajes restantes
+// Función para inicializar el sistema de límite de mensajes
+function initMessageLimitSystem() {
+  // Crear elemento contador de mensajes
+  const header = document.querySelector('header');
+  messageCounterElement = document.createElement('div');
+  messageCounterElement.className = 'message-counter';
+  messageCounterElement.innerHTML = `<span class="messages-left">${remainingMessages}</span>/${maxMessagesPerDay}`;
+  header.appendChild(messageCounterElement);
+  // Añadir estilos CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    .message-counter {
+      background-color: rgba(64, 64, 176, 0.3);
+      padding: 5px 10px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      margin-right: 15px;
+    }
+    .messages-left {
+      font-weight: bold;
+      margin-right: 2px;
+    }
+    .message-limit-alert {
+      background-color: #ff5252;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 10px auto;
+      max-width: 90%;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .limit-timer {
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    .limit-progress {
+      width: 100%;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    } 
+    .limit-progress-bar {
+      height: 100%;
+      background-color: white;
+      width: 100%;
+      transition: width 1s linear;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    .message-counter.warning {
+      animation: pulse 1.5s infinite;
+      background-color: rgba(255, 150, 0, 0.3);
+    }
+    .message-counter.depleted {
+      background-color: rgba(255, 82, 82, 0.3);
+    }
+  `;
+  document.head.appendChild(style);
+  // Cargar el estado previo desde localStorage
+  loadMessageLimitState(); 
+  // Actualizar la interfaz
+  updateMessageCounter();
 }
-                                                 // Leer como texto plano
-    function readFileAsText(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(new Error('Error al leer el archivo'));
-        reader.readAsText(file);
-      });
-    }
-
-    // Leer PDF
-    async function extractTextFromPDF(file) {
-      const pdfData = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-      let text = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        text += content.items.map(item => item.str).join(' ') + '\n\n';
-      }
-      return text;
-    }
-
-    // Leer DOCX
-    async function extractTextFromDOCX(file) {
-      const buffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer: buffer });
-      return result.value;
-    }
-
-    // Detectar tipo de archivo
-    async function extractTextFromFile(file) {
-      const type = file.type;
-
-      if (type === "application/pdf") {
-        return await extractTextFromPDF(file);
-      } else if (type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        return await extractTextFromDOCX(file);
-      } else if (type.startsWith("text/") || type === "application/json") {
-        return await readFileAsText(file);
+// Función para cargar el estado de límite de mensajes desde localStorage
+function loadMessageLimitState() {
+  const savedState = localStorage.getItem('stariaMessageLimit');
+  if (savedState) {
+    const state = JSON.parse(savedState);
+    remainingMessages = state.remainingMessages;    
+    // Verificar si hay un tiempo de reinicio guardado
+    if (state.nextResetTime) {
+      nextResetTime = new Date(state.nextResetTime);      
+      // Si el tiempo de reinicio ya pasó, recargar los mensajes
+      if (new Date() >= nextResetTime) {
+        resetMessageLimit();
       } else {
-        alert("Tipo de archivo no compatible.");
-        return "";
+        // Continuar el temporizador
+        const timeLeft = nextResetTime.getTime() - new Date().getTime();
+        startResetTimer(timeLeft / 1000);
       }
     }
-
-  </script>
-  <!-- Modal para personalizar el prompt del sistema -->
-<div id="system-prompt-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: center;">
-  <div style="background-color: #1a1a1a; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px;">
-    <h3 style="color: #00bcd4;">Personalizar starIA</h3>
-    <p>Personaliza el comportamiento de la IA modificando el prompt del sistema:</p>
-    <textarea id="system-prompt" style="width: 100%; height: 150px; margin-bottom: 15px; background-color: #2a2a2a; color: white; padding: 10px; border: 1px solid #444; border-radius: 5px;">Eres starIA, una inteligencia artificial amable y útil creada por Oscar Rafael. Para mejorar la legibilidad, utiliza formato Markdown en tus respuestas cuando sea apropiado. Puedes usar títulos, negritas, cursivas, listas, tablas, y bloques de código con resaltado de sintaxis.</textarea>
-    <div style="display: flex; justify-content: flex-end;">
-      <button onclick="closeSystemPromptModal()" style="margin-right: 10px; padding: 8px 15px; background-color: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
-      <button onclick="saveSystemPrompt()" style="padding: 8px 15px; background-color: #00bcd4; color: white; border: none; border-radius: 5px; cursor: pointer;">Guardar</button>
+  }
+}
+// Función para guardar el estado de límite de mensajes en localStorage
+function saveMessageLimitState() {
+  const state = {
+    remainingMessages: remainingMessages,
+    nextResetTime: nextResetTime ? nextResetTime.toISOString() : null
+  };
+  localStorage.setItem('stariaMessageLimit', JSON.stringify(state));
+}
+// Función para decrementar el contador de mensajes
+function decrementMessageCount() {
+  if (remainingMessages > 0) {
+    remainingMessages--;
+    updateMessageCounter();
+    saveMessageLimitState();   
+    // Si se agotaron los mensajes, mostrar la alerta y comenzar el temporizador
+    if (remainingMessages === 0 && !nextResetTime) {
+      showLimitReachedAlert();
+      startMessageLimitTimer();
+    }
+  }
+}
+// Función para actualizar el contador visual de mensajes
+function updateMessageCounter() {
+  if (messageCounterElement) {
+    messageCounterElement.querySelector('.messages-left').textContent = remainingMessages;   
+    // Actualizar clase según cantidad de mensajes restantes
+    messageCounterElement.classList.remove('warning', 'depleted');
+    if (remainingMessages === 0) {
+      messageCounterElement.classList.add('depleted');
+    } else if (remainingMessages <= Math.ceil(maxMessagesPerDay * 0.3)) {
+      messageCounterElement.classList.add('warning');
+    }
+  }
+}
+// Función para mostrar alerta cuando se alcanza el límite
+function showLimitReachedAlert() {
+  const limitAlert = document.createElement('div');
+  limitAlert.className = 'message-limit-alert';
+  limitAlert.innerHTML = `
+    <div>Has alcanzado el límite de ${maxMessagesPerDay} mensajes por periodo. Podrás enviar más mensajes en:</div>
+    <div class="limit-timer" id="limit-timer">00:00:00</div>
+    <div class="limit-progress">
+      <div class="limit-progress-bar" id="limit-progress-bar"></div>
     </div>
-  </div>
-</div>
-  <!-- Modal para gestionar plantillas personalizadas -->
-<div id="templates-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: center;">
-  <div style="background-color: #1a1a1a; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
-    <h3 style="color: #00bcd4;">Gestionar plantillas</h3>
-    
-    <div id="template-list" style="margin-bottom: 20px;">
-      <!-- Aquí se mostrarán las plantillas personalizadas -->
+  `; 
+  chat.appendChild(limitAlert);
+  chat.scrollTop = chat.scrollHeight;
+}
+// Función para iniciar el temporizador de recarga
+function startMessageLimitTimer() {
+  // Establecer la próxima hora de reinicio
+  nextResetTime = new Date();
+  nextResetTime.setMinutes(nextResetTime.getMinutes() + resetTimeInMinutes);
+  saveMessageLimitState(); 
+  // Iniciar el temporizador visual
+  startResetTimer(resetTimeInMinutes * 60);
+}
+// Función para iniciar el temporizador visual
+function startResetTimer(totalSeconds) {
+  const timerElement = document.getElementById('limit-timer');
+  const progressBar = document.getElementById('limit-progress-bar');
+  if (!timerElement || !progressBar) return;
+  let secondsLeft = Math.floor(totalSeconds);
+  const totalTime = secondsLeft;
+  // Actualizar la barra de progreso
+  progressBar.style.width = '100%';
+  // Función para formatear el tiempo
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  // Actualizar el temporizador cada segundo
+  const timerId = setInterval(() => {
+    secondsLeft--;
+    if (timerElement) {
+      timerElement.textContent = formatTime(secondsLeft);
+    }
+    if (progressBar) {
+      const percentLeft = (secondsLeft / totalTime) * 100;
+      progressBar.style.width = `${percentLeft}%`;
+    }   
+    if (secondsLeft <= 0) {
+      clearInterval(timerId);
+      resetMessageLimit();
+    }
+  }, 1000);
+}
+// Función para reiniciar el límite de mensajes
+function resetMessageLimit() {
+  remainingMessages = maxMessagesPerDay;
+  nextResetTime = null;
+  updateMessageCounter();
+  saveMessageLimitState();
+  // Añadir mensaje de sistema indicando que se han recargado los mensajes
+  const rechargeMessage = document.createElement('div');
+  rechargeMessage.className = 'message ai';
+  rechargeMessage.innerHTML = `
+    <div class="message-header">
+      <div class="ai-avatar">S</div>
+      <span>StarIA</span>
     </div>
-    
-    <div style="margin-bottom: 15px; padding: 15px; background-color: #2a2a2a; border-radius: 5px;">
-      <h4 style="margin-top: 0; color: #00bcd4;">Nueva plantilla</h4>
-      <input type="text" id="new-template-name" placeholder="Nombre de la plantilla" style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: #333; color: white; border: 1px solid #444; border-radius: 5px;">
-      <textarea id="new-template-content" placeholder="Contenido de la plantilla" style="width: 100%; height: 100px; padding: 8px; background-color: #333; color: white; border: 1px solid #444; border-radius: 5px;"></textarea>
-      <button onclick="addTemplate()" style="margin-top: 10px; padding: 8px 15px; background-color: #00bcd4; color: white; border: none; border-radius: 5px; cursor: pointer;">Añadir plantilla</button>
-    </div>
-    
-    <div style="display: flex; justify-content: flex-end;">
-      <button onclick="closeTemplatesModal()" style="padding: 8px 15px; background-color: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>
-    </div>
-  </div>
-</div>
-  <!-- Modal para personalización visual -->
-<div id="theme-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 10; justify-content: center; align-items: center;">
-  <div style="background-color: #1a1a1a; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
-    <h3 style="color: var(--primary-color);">Personalización de Tema</h3>
-    
-    <div style="margin-bottom: 15px;">
-      <h4>Colores</h4>
-      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-        <div style="display: flex; align-items: center;">
-          <label for="primary-color" style="margin-right: 10px;">Color principal:</label>
-          <input type="color" id="primary-color" value="#00bcd4">
-        </div>
-        <div style="display: flex; align-items: center;">
-          <label for="background-dark" style="margin-right: 10px;">Fondo (modo oscuro):</label>
-          <input type="color" id="background-dark" value="#0d0d0d">
-        </div>
-        <div style="display: flex; align-items: center;">
-          <label for="background-light" style="margin-right: 10px;">Fondo (modo claro):</label>
-          <input type="color" id="background-light" value="#f0f0f0">
-        </div>
-        <div style="display: flex; align-items: center;">
-          <label for="chat-user-bg" style="margin-right: 10px;">Mensaje usuario:</label>
-          <input type="color" id="chat-user-bg" value="#2a2a2a">
-        </div>
-        <div style="display: flex; align-items: center;">
-          <label for="chat-ai-bg" style="margin-right: 10px;">Mensaje IA:</label>
-          <input type="color" id="chat-ai-bg" value="#00768a">
-        </div>
-      </div>
-      
-      <h4>Tipografía</h4>
-      <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 10px;">
-        <div>
-          <label for="font-family">Fuente:</label>
-          <select id="font-family" style="background-color: #2a2a2a; color: white; padding: 5px; border: 1px solid #444; border-radius: 5px;">
-            <option value="Arial, sans-serif">Arial</option>
-            <option value="'Courier New', monospace">Courier New</option>
-            <option value="Georgia, serif">Georgia</option>
-            <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-            <option value="Verdana, sans-serif">Verdana</option>
-          </select>
-        </div>
-        <div>
-          <label for="font-size">Tamaño de fuente:</label>
-          <select id="font-size" style="background-color: #2a2a2a; color: white; padding: 5px; border: 1px solid #444; border-radius: 5px;">
-            <option value="14px">Pequeño</option>
-            <option value="16px" selected>Medio</option>
-            <option value="18px">Grande</option>
-            <option value="20px">Muy grande</option>
-          </select>
-        </div>
-      </div>
-      
-      <h4>Otros</h4>
-      <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-        <div>
-          <label for="border-radius">Bordes redondeados:</label>
-          <select id="border-radius" style="background-color: #2a2a2a; color: white; padding: 5px; border: 1px solid #444; border-radius: 5px;">
-            <option value="0px">Sin redondeo</option>
-            <option value="5px" selected>Normal</option>
-            <option value="10px">Redondeado</option>
-            <option value="20px">Muy redondeado</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    
-    <div style="display: flex; justify-content: space-between;">
-      <button onclick="resetTheme()" style="padding: 8px 15px; background-color: #555; color: white; border: none; border-radius: 5px; cursor: pointer;">Restaurar valores</button>
-      <div>
-        <button onclick="closeThemeModal()" style="margin-right: 10px; padding: 8px 15px; background-color: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
-        <button onclick="saveTheme()" style="padding: 8px 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer;">Guardar</button>
-      </div>
-    </div>
-  </div>
-</div>
+    ¡Tus mensajes han sido recargados! Tienes disponibles ${maxMessagesPerDay} mensajes nuevamente. ¡Sigamos conversando!
+    <div class="timestamp">Ahora</div>
+  `;
+  chat.appendChild(rechargeMessage);
+  chat.scrollTop = chat.scrollHeight; 
+  // Eliminar la alerta de límite si existe
+  const limitAlert = document.querySelector('.message-limit-alert');
+  if (limitAlert) {
+    limitAlert.remove();
+  }
+}
+// Modificación del evento de envío del formulario para comprobar límite
+const originalFormSubmitListener = form.onsubmit;
+form.addEventListener('submit', function(e) {
+  // Si no hay mensajes restantes, prevenir envío
+  if (remainingMessages <= 0) {
+    e.preventDefault();
+    // Mostrar mensaje de error
+    const errorSound = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=error-126627.mp3');
+    errorSound.volume = 0.3;
+    errorSound.play().catch(err => console.log('Audio error:', err));
+    // Resaltar el contador con una animación
+    messageCounterElement.classList.add('depleted');
+    messageCounterElement.style.animation = 'none';
+    setTimeout(() => {
+      messageCounterElement.style.animation = 'pulse 0.5s 3';
+    }, 10);
+    return false;
+  }
+  // Si hay mensajes disponibles, decrementar el contador
+  decrementMessageCount();
+});
+// Inicializar el sistema de límite de mensajes cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+  // Cargar el sistema de límite de mensajes después de las otras inicializaciones
+  setTimeout(initMessageLimitSystem, 100);
+});
+         </script>
 </body>
 </html>
